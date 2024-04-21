@@ -42,7 +42,6 @@ def download_goroda():
 
 # приветствие, добавляем в бд chat_id и словарь towns в виде строки
 async def start(update, context):
-    data_towns = download_goroda()
     user = update.effective_user
     await update.message.reply_html(f'Привет, {user.mention_html()}! Я умею играть в города! Если захочешь поиграть,'
                                     f' то вызови команду /play', reply_markup=markup_start)
@@ -52,7 +51,7 @@ async def start(update, context):
                                                             chat_id INTEGER NOT NULL,
                                                             last_letter TEXT,
                                                             named_words TEXT,
-                                                            towns TEXT NOT NULL)''')
+                                                            towns TEXT)''')
         connect.commit()
 
         chat_id = update.message.chat_id
@@ -60,7 +59,7 @@ async def start(update, context):
         data = cursor.fetchone()
         if data is None:
             cursor.execute(f'INSERT INTO users (chat_id, last_letter, towns) VALUES(?, ?, ?);',
-                           (chat_id, 'Ь', data_towns))
+                           (chat_id, 'Ь', None))
         connect.commit()
 
 
@@ -95,6 +94,10 @@ async def goroda(update, context):
     connect = sqlite3.connect('users_info.db')
     cursor = connect.cursor()
     chat_id = update.message.chat_id
+    cursor.execute(f'SELECT towns FROM users WHERE chat_id = {chat_id}')
+    data = cursor.fetchone()[0]
+    if data is None:
+        return
     last_letter, named_words, towns = await select_info(update)
     word = update.message.text.upper()
     if not last_letter:
@@ -261,6 +264,11 @@ async def play(update, context):
 
 # окончание игры, очищаем словарь
 async def stop(update, context):
+    with sqlite3.connect('users_info.db') as connect:
+        cursor = connect.cursor()
+        chat_id = update.message.chat_id
+        cursor.execute('''UPDATE users SET towns = ? WHERE chat_id = ?''', (None, chat_id))
+        connect.commit()
         await update.message.reply_html(
             f"Спасибо, что поиграли со мной!", reply_markup=markup_start)
 
