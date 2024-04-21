@@ -15,6 +15,10 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+reply_keyboard_start = [['/play']]
+reply_keyboard_play = [['/stop']]
+markup_start = ReplyKeyboardMarkup(reply_keyboard_start, one_time_keyboard=True, resize_keyboard=True)
+markup_play = ReplyKeyboardMarkup(reply_keyboard_play, one_time_keyboard=True, resize_keyboard=True)
 
 
 # функция добавляет в словарь towns города из википедии
@@ -41,7 +45,7 @@ async def start(update, context):
     data_towns = download_goroda()
     user = update.effective_user
     await update.message.reply_html(f'Привет, {user.mention_html()}! Я умею играть в города! Если захочешь поиграть,'
-                                    f' то вызови команду /play')
+                                    f' то вызови команду /play', reply_markup=markup_start)
     with sqlite3.connect('users_info.db') as connect:
         cursor = connect.cursor()
         cursor.execute('''CREATE TABLE IF NOT EXISTS users(id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -129,7 +133,8 @@ async def goroda(update, context):
             connect.commit()
 
         elif word not in towns[word[0]]:
-            await update.message.reply_text('Такого российского города не существует, попробуйте ещё раз')
+            await update.message.reply_text('Такого российского города не существует, попробуйте ещё раз',
+                                            reply_markup=markup_play)
             cursor.close()
             return goroda
 
@@ -174,19 +179,21 @@ async def goroda(update, context):
             connect.commit()
 
         elif word in named_words:
-            await update.message.reply_text('Такой город уже был, попробуйте ещё раз')
+            await update.message.reply_text('Такой город уже был, попробуйте ещё раз', reply_markup=markup_play)
             cursor.close()
             return goroda
 
         elif word not in towns[word[0]]:
-            await update.message.reply_text('Такого российского города не существует, попробуйте ещё раз')
+            await update.message.reply_text('Такого российского города не существует, попробуйте ещё раз',
+                                            reply_markup=markup_play)
             cursor.close()
             return goroda
 
         elif last_letter != word[0]:
             cursor.execute(f'SELECT last_letter FROM users WHERE chat_id = {chat_id}')
             last_letter = list(cursor.fetchone())[0]
-            await update.message.reply_text(f'Город должен начинаться на букву {last_letter}, попробуйте ещё раз')
+            await update.message.reply_text(f'Город должен начинаться на букву {last_letter}, попробуйте ещё раз',
+                                            reply_markup=markup_play)
             cursor.close()
             return goroda
 
@@ -248,14 +255,14 @@ async def play(update, context):
         await update.message.reply_text(
             'Правила: участники выстраивают цепочку российских городов: каждый новый начинается'
             ' на ту же букву, на какую оканчивается предыдущий.'
-            ' Назовите город на любую букву.')
+            ' Назовите город на любую букву.', reply_markup=markup_play)
         return goroda
 
 
 # окончание игры, очищаем словарь
 async def stop(update, context):
         await update.message.reply_html(
-            f"Спасибо, что поиграли со мной!")
+            f"Спасибо, что поиграли со мной!", reply_markup=markup_start)
 
 
 # запускаем бота
